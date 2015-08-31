@@ -115,7 +115,12 @@ func New(cfg *config.Config, factory *command.CommandFactory, errLogger, infLogg
 	// Empty Exchange name means default, no need to declare
 	if "" != cfg.Exchange.Name {
 		infLogger.Printf("Declaring exchange \"%s\"...", cfg.Exchange.Name)
-		err = ch.ExchangeDeclare(cfg.Exchange.Name, cfg.Exchange.Type, cfg.Exchange.Durable, cfg.Exchange.Autodelete, false, false, amqp.Table{})
+		
+		argsTable := amqp.Table{};
+		if "" != cfg.Exchange.XDelayedType {
+			argsTable["x-delayed-type"] = cfg.Exchange.XDelayedType;
+		}
+		err = ch.ExchangeDeclare(cfg.Exchange.Name, cfg.Exchange.Type, cfg.Exchange.Durable, cfg.Exchange.Autodelete, false, false, argsTable)
 
 		if nil != err {
 			return nil, errors.New(fmt.Sprintf("Failed to declare exchange: %s", err.Error()))

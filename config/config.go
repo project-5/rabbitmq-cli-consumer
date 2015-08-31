@@ -20,10 +20,11 @@ type Config struct {
 		Global    bool
 	}
 	Exchange struct {
-		Name		string
-		Autodelete	bool
-		Type		string
-		Durable		bool
+		Name			 	string
+		Autodelete	 	bool
+		Type			 	string
+		Durable		 	bool
+		XDelayedType		string
 	}
 	Logs struct {
 		Error string
