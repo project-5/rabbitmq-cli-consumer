@@ -28,6 +28,7 @@ func (me CommandExecuter) Execute(cmd *exec.Cmd) bool {
 		return false
 	}
 
+	me.infLogger.Print(string(out[:]))
 	me.infLogger.Println("Processed!")
 
 	return true
