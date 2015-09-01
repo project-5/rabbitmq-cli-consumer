@@ -26,6 +26,22 @@ func main() {
 			Name:  "configuration, c",
 			Usage: "Location of configuration file",
 		},
+		cli.StringFlag{
+			Name:  "host",
+			Usage: "Rabbitmq host. This flug overrdide configuration option.",
+		},
+		cli.StringFlag{
+			Name:  "port",
+			Usage: "Rabbitmq port. This flug overrdide configuration option.",
+		},
+		cli.StringFlag{
+			Name:  "user",
+			Usage: "Rabbitmq user. This flug overrdide configuration option.",
+		},
+		cli.StringFlag{
+			Name:  "password",
+			Usage: "Rabbitmq password. This flug overrdide configuration option.",
+		},
 		cli.BoolFlag{
 			Name:  "verbose, V",
 			Usage: "Enable verbose mode (logs to stdout and stderr)",
@@ -41,6 +57,25 @@ func main() {
 
 		logger := log.New(os.Stderr, "", log.Ldate|log.Ltime)
 		cfg, err := config.LoadAndParse(c.String("configuration"))
+		
+		// override config parameters from flugs
+		host := c.String("host");
+		port := c.String("port");
+		user := c.String("user");
+		password := c.String("password");
+		
+		if "" == host {
+			cfg.RabbitMq.Host = host;
+		}
+		if "" == port {
+			cfg.RabbitMq.Port = port;
+		}
+		if "" == user {
+			cfg.RabbitMq.Username = user;
+		}
+		if "" == password {
+			cfg.RabbitMq.Password = password;
+		}
 
 		if err != nil {
 			logger.Fatalf("Failed parsing configuration: %s\n", err)
