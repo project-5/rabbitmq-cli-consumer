@@ -42,10 +42,6 @@ func main() {
 			Name:  "password",
 			Usage: "Rabbitmq password. This flug overrdide configuration option.",
 		},
-		cli.BoolFlag{
-			Name:  "verbose, V",
-			Usage: "Enable verbose mode (logs to stdout and stderr)",
-		},
 	}
 	app.Action = func(c *cli.Context) {
 		if c.String("configuration") == "" && c.String("executable") == "" {
@@ -53,10 +49,12 @@ func main() {
 			os.Exit(1)
 		}
 
-		verbose := c.Bool("verbose")
-
 		logger := log.New(os.Stderr, "", log.Ldate|log.Ltime)
 		cfg, err := config.LoadAndParse(c.String("configuration"))
+
+		if err != nil {
+			logger.Fatalf("Failed parsing configuration: %s\n", err)
+		}
 		
 		// override config parameters from flugs
 		host := c.String("host");
@@ -64,32 +62,21 @@ func main() {
 		user := c.String("user");
 		password := c.String("password");
 		
-		if "" == host {
+		if "" != host {
 			cfg.RabbitMq.Host = host;
 		}
-		if "" == port {
+		if "" != port {
 			cfg.RabbitMq.Port = port;
 		}
-		if "" == user {
+		if "" != user {
 			cfg.RabbitMq.Username = user;
 		}
-		if "" == password {
+		if "" != password {
 			cfg.RabbitMq.Password = password;
 		}
 
-		if err != nil {
-			logger.Fatalf("Failed parsing configuration: %s\n", err)
-		}
-
-		errLogger, err := createLogger(cfg.Logs.Error, verbose, os.Stderr)
-		if err != nil {
-			logger.Fatalf("Failed creating error log: %s", err)
-		}
-
-		infLogger, err := createLogger(cfg.Logs.Info, verbose, os.Stdout)
-		if err != nil {
-			logger.Fatalf("Failed creating info log: %s", err)
-		}
+		errLogger := log.New(io.MultiWriter(os.Stdout, os.Stderr), "", log.Ldate|log.Ltime)
+		infLogger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
 
 		factory := command.Factory(c.String("executable"))
 
@@ -102,22 +89,4 @@ func main() {
 	}
 
 	app.Run(os.Args)
-}
-
-func createLogger(filename string, verbose bool, out io.Writer) (*log.Logger, error) {
-	file, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
-
-	if err != nil {
-		return nil, err
-	}
-
-	var writers = []io.Writer{
-		file,
-	}
-
-	if verbose {
-		writers = append(writers, out)
-	}
-
-	return log.New(io.MultiWriter(writers...), "", log.Ldate|log.Ltime), nil
 }

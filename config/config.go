@@ -26,10 +26,6 @@ type Config struct {
 		Durable		 	bool
 		XDelayedType		string
 	}
-	Logs struct {
-		Error string
-		Info  string
-	}
 }
 
 func LoadAndParse(location string) (*Config, error) {

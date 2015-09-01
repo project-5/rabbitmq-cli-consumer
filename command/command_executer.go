@@ -2,6 +2,8 @@ package command
 
 import (
 	"log"
+	"io"
+	"os"
 	"os/exec"
 )
 
@@ -19,16 +21,17 @@ func New(errLogger, infLogger *log.Logger) *CommandExecuter {
 
 func (me CommandExecuter) Execute(cmd *exec.Cmd) bool {
 	me.infLogger.Println("Processing message...")
-	out, err := cmd.CombinedOutput()
+	
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = io.MultiWriter(os.Stdout, os.Stderr)
+	
+	err := cmd.Run()
 
 	if err != nil {
-		me.infLogger.Println("Failed. Check error log for details.")
-		me.errLogger.Printf("Failed: %s\n", string(out[:]))
-		me.errLogger.Printf("Error: %s\n", err)
+		me.errLogger.Printf("Processing error: %s\n", err)
 		return false
 	}
 
-	me.infLogger.Print(string(out[:]))
 	me.infLogger.Println("Processed!")
 
 	return true
