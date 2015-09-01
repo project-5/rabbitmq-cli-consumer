@@ -6,6 +6,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
+    "os/signal"
+    "syscall"
 	"github.com/maxposter/rabbitmq-cli-consumer/command"
 	"github.com/maxposter/rabbitmq-cli-consumer/config"
 	"github.com/streadway/amqp"
@@ -34,36 +37,61 @@ func (c *Consumer) Consume() {
 
 	defer c.Connection.Close()
 	defer c.Channel.Close()
-
-	forever := make(chan bool)
-
-	go func() {
-		for d := range msgs {
-			input := d.Body
-			if c.Compression {
-				var b bytes.Buffer
-				w, err := zlib.NewWriterLevel(&b, zlib.BestCompression)
-				if err != nil {
-					c.ErrLogger.Println("Could not create zlib handler")
-					d.Nack(true, true)
-				}
-				c.InfLogger.Println("Compressed message")
-				w.Write(input)
-				w.Close()
-
-				input = b.Bytes()
-			}
-
-			cmd := c.Factory.Create(base64.StdEncoding.EncodeToString(input))
-			if c.Executer.Execute(cmd) {
-				d.Ack(true)
-			} else {
+	
+	needTerminate := false
+	inProgress := false
+	
+	termanateChan := make(chan os.Signal, 1)
+    signal.Notify(termanateChan, os.Interrupt)
+    signal.Notify(termanateChan, syscall.SIGTERM)
+	
+	var termanate = func() {
+		c.InfLogger.Println("Terminated.")
+		os.Exit(1)
+	}
+	
+    go func() {
+        <-termanateChan
+		needTerminate = true;
+		if inProgress {
+			c.InfLogger.Println("Waiting for correct conusmer termanation...")
+			needTerminate = true;
+		} else {
+			termanate()
+		}
+    }()
+	
+	c.InfLogger.Println("Waiting for messages...")
+	for d := range msgs {
+		if needTerminate {
+			termanate()
+		}
+		inProgress = true;
+		
+		input := d.Body
+		if c.Compression {
+			var b bytes.Buffer
+			w, err := zlib.NewWriterLevel(&b, zlib.BestCompression)
+			if err != nil {
+				c.ErrLogger.Println("Could not create zlib handler")
 				d.Nack(true, true)
 			}
+			c.InfLogger.Println("Compressed message")
+			w.Write(input)
+			w.Close()
+
+			input = b.Bytes()
 		}
-	}()
-	c.InfLogger.Println("Waiting for messages...")
-	<-forever
+
+		cmd := c.Factory.Create(base64.StdEncoding.EncodeToString(input))
+		if c.Executer.Execute(cmd) {
+			d.Ack(true)
+		} else {
+			d.Nack(true, true)
+		}
+		
+		inProgress = false;
+	}
 }
 
 func New(cfg *config.Config, factory *command.CommandFactory, errLogger, infLogger *log.Logger) (*Consumer, error) {
